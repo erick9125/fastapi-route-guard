@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest --cov --cov-report=term-missing
+      - run: uv build
+      - name: Check wheel and sdist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          dist = Path("dist")
+          wheels = list(dist.glob("*.whl"))
+          sdists = list(dist.glob("*.tar.gz"))
+          if not wheels or not sdists:
+              raise SystemExit(f"missing artifacts in {list(dist.iterdir())}")
+          print("artifacts", wheels[0].name, sdists[0].name)
+          PY
+      - name: Import the installed wheel
+        run: |
+          uv pip install dist/*.whl
+          uv run python -c "from fastapi_route_guard import PolicyEvaluator, RouteGuard; print('ok')"
