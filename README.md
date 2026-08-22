@@ -266,6 +266,14 @@ async def resolve_invoice(
     return await repository.find_by_id(invoice_id)
 ```
 
+Everything except the resource id is resolved by FastAPI itself, so a resolver
+gets the same dependency semantics as a route handler: `yield` dependencies are
+entered and closed around the request, `app.dependency_overrides` apply, and a
+dependency shared with the endpoint is resolved once per request. Because the
+guard reads the resolver's signature when the route is declared, call
+`add_resource()` before `protect_resource()` — an unregistered resource then
+fails at import time instead of on the first request that reaches the endpoint.
+
 The FastAPI layer extracts `id_param` from the path. The core evaluator never
 reads `request.path_params`.
 

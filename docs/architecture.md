@@ -17,6 +17,15 @@ src/fastapi_route_guard/
 after claims pass, builds an `AuthorizationContext`, and asks the evaluator for
 a decision.
 
+The integration layer does not resolve dependencies itself. `protect_resource`
+reads the resolver signatures at wiring time and exposes every parameter it does
+not bind — anything other than the resource id, and the loaded resource for the
+attributes mapper — as a real FastAPI dependency on the guard dependency it
+returns. FastAPI therefore owns `Depends` resolution, `yield` teardown,
+`dependency_overrides`, and the per-request cache, while the resolver call
+itself stays behind the claims phase so a denied caller never triggers the
+lookup.
+
 Public entry point: `fastapi_route_guard` — core types, evaluator, `RouteGuard`,
 testing helpers.
 

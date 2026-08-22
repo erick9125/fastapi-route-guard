@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator
 
 import pytest
-from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from tests.fixtures.invoices import INVOICE_A, USER_A
 from tests.fixtures.invoices_app import InvoiceStore, create_invoices_app
@@ -83,27 +82,24 @@ async def test_duplicate_resource_registration_fails_closed() -> None:
         raise AssertionError("duplicate resources must not overwrite silently")
 
 
-async def test_unknown_resource_type_fails_closed_on_request() -> None:
+async def test_unknown_resource_type_fails_closed_at_wiring_time() -> None:
+    """An unregistered resource must not survive until the first request.
+
+    The guard reads the resolver signatures when the route is declared, so a
+    typo in a resource name breaks at import time instead of returning a 500
+    the first time someone hits that endpoint.
+    """
+
     async def principal() -> AuthorizationPrincipal:
         return AuthorizationPrincipal(id="user-1", scopes={"invoice:read"})
 
     guard = RouteGuard(principal=principal)
-    app = FastAPI()
 
-    @app.get("/ghost/{invoice_id}")
-    async def ghost(
-        item: object = Depends(
-            guard.protect_resource(
-                "ghost",
-                id_param="invoice_id",
-                scopes={"invoice:read"},
-                tenant=True,
-            )
-        ),
-    ) -> object:
-        return item
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        with pytest.raises(ResourceNotRegistered):
-            await client.get("/ghost/invoice-a")
+    with pytest.raises(ResourceNotRegistered) as exc_info:
+        guard.protect_resource(
+            "ghost",
+            id_param="invoice_id",
+            scopes={"invoice:read"},
+            tenant=True,
+        )
+    assert exc_info.value.name == "ghost"

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Annotated
 
 import pytest
@@ -11,7 +12,7 @@ from fastapi_route_guard import (
     ResourceAttributes,
     RouteGuard,
 )
-from fastapi_route_guard.fastapi.dependencies import callable_from, invoke_callable
+from fastapi_route_guard.fastapi.dependencies import callable_from
 
 
 class _Doc:
@@ -143,36 +144,110 @@ def test_callable_from_rejects_plain_objects() -> None:
         callable_from(object())
 
 
-async def test_invoke_callable_supports_annotated_depends_and_sync() -> None:
+async def test_sync_resolver_with_annotated_depends_and_request() -> None:
     def get_flag() -> str:
         return "ok"
 
-    def resolve(
+    async def current_principal() -> AuthorizationPrincipal:
+        return AuthorizationPrincipal(
+            id="user-1",
+            scopes={"doc:read"},
+            tenant_id="tenant-a",
+        )
+
+    def resolve_doc(
         resource_id: str,
         flag: Annotated[str, Depends(get_flag)],
         request: Request,
-    ) -> str:
-        return f"{resource_id}:{flag}:{request.url.path}"
-
-    request = Request(
-        {
-            "type": "http",
-            "asgi": {"version": "3.0"},
-            "http_version": "1.1",
-            "method": "GET",
-            "scheme": "http",
-            "path": "/docs/doc-1",
-            "raw_path": b"/docs/doc-1",
-            "query_string": b"",
-            "headers": [],
-            "client": ("test", 80),
-            "server": ("test", 80),
-            "path_params": {"doc_id": "doc-1"},
+    ) -> dict[str, str]:
+        return {
+            "id": resource_id,
+            "flag": flag,
+            "path": request.url.path,
+            "owner_id": "user-1",
+            "tenant_id": "tenant-a",
         }
-    )
-    result = await invoke_callable(
-        resolve,
-        request=request,
-        bound={"resource_id": "doc-1"},
-    )
-    assert result == "doc-1:ok:/docs/doc-1"
+
+    def doc_attributes(resource: dict[str, str]) -> ResourceAttributes:
+        return ResourceAttributes(
+            owner_id=resource["owner_id"],
+            tenant_id=resource["tenant_id"],
+        )
+
+    guard = RouteGuard(principal=current_principal)
+    guard.add_resource("doc", resolver=resolve_doc, attributes=doc_attributes)
+    app = FastAPI()
+
+    @app.get("/docs/{doc_id}")
+    async def read_doc(
+        doc: dict[str, str] = Depends(
+            guard.protect_resource(
+                "doc",
+                id_param="doc_id",
+                scopes={"doc:read"},
+                tenant=True,
+            )
+        ),
+    ) -> dict[str, str]:
+        return doc
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/docs/doc-1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == "doc-1"
+    assert body["flag"] == "ok"
+    assert body["path"] == "/docs/doc-1"
+
+
+async def test_domain_class_named_request_is_not_the_asgi_request() -> None:
+    """A parameter is only the ASGI request when it *is* starlette's Request."""
+
+    @dataclass
+    class Request:  # a domain model that merely shares starlette's class name
+        label: str
+
+    def get_context() -> Request:
+        return Request(label="domain")
+
+    async def current_principal() -> AuthorizationPrincipal:
+        return AuthorizationPrincipal(
+            id="user-1",
+            scopes={"doc:read"},
+            tenant_id="tenant-a",
+        )
+
+    async def resolve_doc(
+        doc_id: str,
+        context: Annotated[Request, Depends(get_context)],
+    ) -> dict[str, str]:
+        return {"id": doc_id, "label": context.label}
+
+    async def doc_attributes(resource: dict[str, str]) -> ResourceAttributes:
+        return ResourceAttributes(owner_id="user-1", tenant_id="tenant-a")
+
+    guard = RouteGuard(principal=current_principal)
+    guard.add_resource("doc", resolver=resolve_doc, attributes=doc_attributes)
+    app = FastAPI()
+
+    @app.get("/docs/{doc_id}")
+    async def read_doc(
+        doc: dict[str, str] = Depends(
+            guard.protect_resource(
+                "doc",
+                id_param="doc_id",
+                scopes={"doc:read"},
+                tenant=True,
+            )
+        ),
+    ) -> dict[str, str]:
+        return doc
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/docs/doc-1")
+
+    assert response.status_code == 200
+    assert response.json()["label"] == "domain"

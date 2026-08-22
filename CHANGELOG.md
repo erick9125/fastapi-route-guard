@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Resource and attribute resolvers no longer go through a private dependency
+  resolver. Their parameters are exposed as real FastAPI dependencies, so
+  `yield` dependencies are entered and closed around the request instead of
+  arriving as an un-started generator, `app.dependency_overrides` apply to the
+  guard as well as to the route, and a dependency shared with the endpoint is
+  resolved once per request rather than twice. The claims phase still runs
+  before the resolver body, so a denied caller does not trigger the lookup.
+- A parameter is treated as the ASGI request only when its annotation *is*
+  Starlette's `Request`. A domain class that merely shares the name no longer
+  receives the request object.
+
+### Changed
+
+- `add_resource()` must be called before `protect_resource()` for that resource:
+  the resolver signature is read when the route is declared. An unregistered
+  resource now raises `ResourceNotRegistered` at import time instead of on the
+  first request to the endpoint.
+- Removed `invoke_callable`, `invoke_resolver`, and `invoke_attributes` from
+  `fastapi_route_guard.fastapi.dependencies`.
+
 ## 0.1.0
 
 First release.
