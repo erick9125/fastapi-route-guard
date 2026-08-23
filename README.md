@@ -439,9 +439,9 @@ Tenant and ownership are different controls. See
 ## Testing
 
 ```python
-from fastapi_route_guard import RoutePolicy, evaluate_policy, test_principal
+from fastapi_route_guard import RoutePolicy, evaluate_policy, make_principal
 
-principal = test_principal(
+principal = make_principal(
     id="user-1",
     roles={"manager"},
     scopes={"invoice:read"},

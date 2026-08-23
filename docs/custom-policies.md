@@ -28,7 +28,8 @@ Every name listed in `handlers` must be registered. Missing handlers raise
 `PolicyHandlerNotFound` (a configuration fault, not an allow). Every listed
 handler must return `True`. Handlers run after claims, resource existence,
 tenant, and ownership, so expensive I/O is skipped when a basic scope is
-missing.
+missing — including under `collect_all=True`, which aggregates the violations of
+a phase but never runs the next one to collect more.
 
 Handlers are async because they may consult a database, feature flags, or
 another authorization context. They receive `AuthorizationContext`: principal,

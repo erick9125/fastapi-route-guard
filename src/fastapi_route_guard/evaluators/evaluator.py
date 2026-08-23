@@ -59,10 +59,12 @@ class PolicyEvaluator:
         context: AuthorizationContext,
     ) -> AuthorizationResult:
         claims = self.evaluate_claims(policy, context)
-        if not claims.allowed and not self._collect_all:
+        if not claims.allowed:
+            # `collect_all` aggregates the violations of one phase, never at the
+            # cost of running the next one: the resource phase reaches handlers
+            # that hit a database, and a denied caller must not trigger them.
             return claims
-        resource = await self.evaluate_resource(policy, context)
-        return _allowed((*claims.violations, *resource.violations))
+        return await self.evaluate_resource(policy, context)
 
     def evaluate_claims(
         self,

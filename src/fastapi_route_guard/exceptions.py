@@ -36,6 +36,17 @@ class MissingObjectCheck(PolicyEvaluationError):
         )
 
 
+class InvalidPrincipal(PolicyEvaluationError):
+    def __init__(self, dependency: str, received: str) -> None:
+        self.dependency = dependency
+        self.received = received
+        super().__init__(
+            f'The principal dependency "{dependency}" returned {received}, not '
+            "an AuthorizationPrincipal. Map the application user onto "
+            "AuthorizationPrincipal before authorization is evaluated."
+        )
+
+
 class MissingResourceId(PolicyEvaluationError):
     def __init__(self, id_param: str) -> None:
         self.id_param = id_param

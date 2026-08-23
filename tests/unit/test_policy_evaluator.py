@@ -6,7 +6,7 @@ from fastapi_route_guard import (
     RoutePolicy,
     ViolationCode,
     evaluate_policy,
-    test_principal,
+    make_principal,
 )
 from fastapi_route_guard.core.models import AuthorizationContext
 
@@ -31,7 +31,7 @@ async def test_unauthenticated_principal_is_denied() -> None:
 async def test_empty_principal_id_is_denied() -> None:
     result = await evaluate_policy(
         policy=RoutePolicy(),
-        principal=test_principal(id=""),
+        principal=make_principal(id=""),
     )
     assert result.allowed is False
     assert result.violations[0].code is ViolationCode.UNAUTHENTICATED
@@ -43,7 +43,7 @@ async def test_fail_fast_stops_at_first_violation() -> None:
             roles=frozenset({"admin"}),
             scopes=frozenset({"invoice:read"}),
         ),
-        principal=test_principal(roles={"user"}, scopes=set()),
+        principal=make_principal(roles={"user"}, scopes=set()),
     )
     assert result.allowed is False
     assert len(result.violations) == 1
@@ -56,7 +56,7 @@ async def test_collect_all_gathers_claim_violations() -> None:
             roles=frozenset({"admin"}),
             scopes=frozenset({"invoice:read"}),
         ),
-        principal=test_principal(roles={"user"}, scopes=set()),
+        principal=make_principal(roles={"user"}, scopes=set()),
         collect_all=True,
     )
     codes = {item.code for item in result.violations}
@@ -70,7 +70,7 @@ async def test_missing_role_denies_before_resource_checks() -> None:
             roles=frozenset({"admin"}),
             tenant=True,
         ),
-        principal=test_principal(roles={"user"}, tenant_id="tenant-a"),
+        principal=make_principal(roles={"user"}, tenant_id="tenant-a"),
         resource=object(),
         attributes=ResourceAttributes(tenant_id="tenant-a"),
     )

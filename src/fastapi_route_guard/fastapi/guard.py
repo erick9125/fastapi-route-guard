@@ -11,7 +11,11 @@ from fastapi_route_guard.core.principal import AuthorizationPrincipal
 from fastapi_route_guard.core.resource import ResourceAttributes
 from fastapi_route_guard.evaluators.custom import PolicyHandler
 from fastapi_route_guard.evaluators.evaluator import PolicyEvaluator
-from fastapi_route_guard.exceptions import MissingObjectCheck, MissingResourceId
+from fastapi_route_guard.exceptions import (
+    InvalidPrincipal,
+    MissingObjectCheck,
+    MissingResourceId,
+)
 from fastapi_route_guard.fastapi.context import build_request_context
 from fastapi_route_guard.fastapi.dependencies import (
     call_resolver,
@@ -37,6 +41,23 @@ def _parameter(name: str, annotation: object) -> inspect.Parameter:
         name,
         inspect.Parameter.POSITIONAL_OR_KEYWORD,
         annotation=annotation,
+    )
+
+
+def _checked_principal(
+    principal: object,
+    dependency: PrincipalDependency,
+) -> AuthorizationPrincipal | None:
+    """FastAPI does not validate what a dependency returns, so the guard does.
+
+    A principal dependency that forgets to map the application user would
+    otherwise fail deep inside an evaluator with an anonymous ``AttributeError``.
+    """
+    if principal is None or isinstance(principal, AuthorizationPrincipal):
+        return principal
+    raise InvalidPrincipal(
+        getattr(dependency, "__name__", repr(dependency)),
+        type(principal).__name__,
     )
 
 
@@ -84,10 +105,10 @@ class RouteGuard:
 
         async def dependency(
             request: Request,
-            principal: AuthorizationPrincipal | None = Depends(self._principal),
+            principal: Annotated[Any, Depends(self._principal)] = None,
         ) -> None:
             context = AuthorizationContext(
-                principal=principal,
+                principal=_checked_principal(principal, self._principal),
                 resource=None,
                 resource_type=None,
                 action=action,
@@ -143,7 +164,7 @@ class RouteGuard:
 
         async def dependency(**guard_args: Any) -> Any:
             request = cast(Request, guard_args[_REQUEST_ARG])
-            principal = cast(AuthorizationPrincipal | None, guard_args[_PRINCIPAL_ARG])
+            principal = _checked_principal(guard_args[_PRINCIPAL_ARG], self._principal)
             claims_context = AuthorizationContext(
                 principal=principal,
                 resource=None,

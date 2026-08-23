@@ -3,6 +3,11 @@
 This package does not authenticate users. Authentication must resolve a trusted
 principal before `RouteGuard` evaluates a policy.
 
+That dependency must return an `AuthorizationPrincipal` or `None`. FastAPI does
+not validate what a dependency returns, so the guard checks it: anything else
+raises `InvalidPrincipal`, naming the dependency and the type it returned,
+rather than failing later inside an evaluator.
+
 Resource-level authorization depends on correct resolver and policy
 configuration. The library helps enforce consistent object-level authorization
 controls that can mitigate BOLA/IDOR risks when correctly configured. It does

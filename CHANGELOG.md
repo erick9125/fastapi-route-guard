@@ -15,8 +15,19 @@
   Starlette's `Request`. A domain class that merely shares the name no longer
   receives the request object.
 
+- `collect_all=True` no longer runs the resource phase for a caller already
+  denied on claims. Aggregating violations must not buy them with I/O: custom
+  handlers reach a database, and a denied caller must not trigger them. It also
+  no longer reports `unauthenticated` twice.
+- A principal dependency that does not return an `AuthorizationPrincipal` now
+  raises `InvalidPrincipal`, naming the dependency and the type it returned,
+  instead of failing inside an evaluator with an anonymous `AttributeError`.
+
 ### Changed
 
+- Renamed the `test_principal()` helper to `make_principal()`. The old name was
+  collected by pytest as a test in every project that imported it, producing a
+  phantom passing test and a `PytestReturnNotNoneWarning`.
 - `add_resource()` must be called before `protect_resource()` for that resource:
   the resolver signature is read when the route is declared. An unregistered
   resource now raises `ResourceNotRegistered` at import time instead of on the
