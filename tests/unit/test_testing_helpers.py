@@ -1,4 +1,4 @@
-from fastapi_route_guard import evaluate_policy, test_principal
+from fastapi_route_guard import evaluate_policy, make_principal
 from fastapi_route_guard.core.policy import RoutePolicy
 from fastapi_route_guard.core.resource import ResourceAttributes
 
@@ -12,7 +12,7 @@ async def test_evaluate_policy_helper_allows_matching_principal() -> None:
             tenant=True,
             ownership=True,
         ),
-        principal=test_principal(
+        principal=make_principal(
             id="user-1",
             roles={"manager"},
             scopes={"invoice:read"},

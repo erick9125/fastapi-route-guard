@@ -1,6 +1,8 @@
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
 import pytest
+from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 from tests.fixtures.invoices import INVOICE_A, USER_A
 from tests.fixtures.invoices_app import InvoiceStore, create_invoices_app
@@ -8,6 +10,7 @@ from tests.fixtures.invoices_app import InvoiceStore, create_invoices_app
 from fastapi_route_guard import (
     AuthorizationPrincipal,
     DuplicateResource,
+    InvalidPrincipal,
     ResourceNotRegistered,
     ResourceRegistry,
     RouteGuard,
@@ -103,3 +106,77 @@ async def test_unknown_resource_type_fails_closed_at_wiring_time() -> None:
             tenant=True,
         )
     assert exc_info.value.name == "ghost"
+
+
+async def test_unmapped_principal_is_a_named_configuration_fault() -> None:
+    """A principal dependency that forgets to map the user must say so.
+
+    FastAPI does not validate what a dependency returns, so an application
+    user object used to reach the evaluators and fail there with an anonymous
+    `AttributeError`.
+    """
+
+    @dataclass
+    class User:
+        id: str
+
+    async def current_principal() -> User:
+        return User(id="user-1")
+
+    guard = RouteGuard(principal=current_principal)
+    app = FastAPI()
+
+    @app.get("/ping")
+    async def ping(
+        _: None = Depends(guard.protect(scopes={"invoice:read"})),
+    ) -> dict[str, str]:
+        return {"status": "ok"}
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        with pytest.raises(InvalidPrincipal) as exc_info:
+            await client.get("/ping")
+
+    assert exc_info.value.dependency == "current_principal"
+    assert exc_info.value.received == "User"
+
+
+async def test_unmapped_principal_is_reported_on_resource_routes_too() -> None:
+    @dataclass
+    class User:
+        id: str
+
+    async def current_principal() -> User:
+        return User(id="user-a")
+
+    async def resolve_invoice(invoice_id: str) -> object:
+        raise AssertionError("the resolver must not run with an invalid principal")
+
+    async def invoice_attributes(resource: object) -> object:
+        raise AssertionError("attributes must not run with an invalid principal")
+
+    guard = RouteGuard(principal=current_principal)
+    guard.add_resource(
+        "invoice",
+        resolver=resolve_invoice,
+        attributes=invoice_attributes,
+    )
+    app = FastAPI()
+
+    @app.get("/invoices/{invoice_id}")
+    async def read_invoice(
+        invoice: object = Depends(
+            guard.protect_resource(
+                "invoice",
+                id_param="invoice_id",
+                scopes={"invoice:read"},
+                tenant=True,
+            )
+        ),
+    ) -> object:
+        return invoice
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        with pytest.raises(InvalidPrincipal):
+            await client.get("/invoices/invoice-a")

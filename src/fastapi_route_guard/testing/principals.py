@@ -3,7 +3,7 @@ from typing import Any
 from fastapi_route_guard.core.principal import AuthorizationPrincipal
 
 
-def test_principal(
+def make_principal(
     *,
     id: str = "user-1",
     roles: set[str] | None = None,

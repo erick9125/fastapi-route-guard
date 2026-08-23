@@ -18,6 +18,7 @@ from fastapi_route_guard.evaluators.tenant import TenantEvaluator
 from fastapi_route_guard.exceptions import (
     DuplicatePolicyHandler,
     DuplicateResource,
+    InvalidPrincipal,
     MissingObjectCheck,
     MissingResourceId,
     PolicyEvaluationError,
@@ -32,7 +33,7 @@ from fastapi_route_guard.registry.resources import (
     ResourceRegistry,
 )
 from fastapi_route_guard.testing.builders import evaluate_policy
-from fastapi_route_guard.testing.principals import test_principal
+from fastapi_route_guard.testing.principals import make_principal
 
 __all__ = [
     "AuthorizationContext",
@@ -42,6 +43,7 @@ __all__ = [
     "AuthorizationViolation",
     "DuplicatePolicyHandler",
     "DuplicateResource",
+    "InvalidPrincipal",
     "MissingObjectCheck",
     "MissingResourceId",
     "OwnershipEvaluator",
@@ -64,5 +66,5 @@ __all__ = [
     "TenantEvaluator",
     "ViolationCode",
     "evaluate_policy",
-    "test_principal",
+    "make_principal",
 ]

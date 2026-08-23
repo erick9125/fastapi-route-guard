@@ -3,7 +3,7 @@ from fastapi_route_guard import (
     RoutePolicy,
     ViolationCode,
     evaluate_policy,
-    test_principal,
+    make_principal,
 )
 
 
@@ -21,7 +21,7 @@ async def test_roles_scopes_tenant_and_handler_must_all_pass() -> None:
         tenant=True,
         handlers=("invoice.can_approve",),
     )
-    principal = test_principal(
+    principal = make_principal(
         roles={"manager"},
         scopes={"invoice:approve"},
         tenant_id="tenant-a",
@@ -51,7 +51,7 @@ async def test_tenant_failure_denies_even_when_other_requirements_pass() -> None
             tenant=True,
             handlers=("invoice.can_approve",),
         ),
-        principal=test_principal(
+        principal=make_principal(
             roles={"manager"},
             scopes={"invoice:approve"},
             tenant_id="tenant-a",
