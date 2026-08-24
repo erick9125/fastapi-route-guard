@@ -18,24 +18,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: uv sync --group dev
+      - run: uv sync --locked --group dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest --cov --cov-report=term-missing
       - run: uv build
-      - name: Check wheel and sdist
+      - name: Check the metadata of both artifacts
+        run: uvx twine check --strict dist/*
+      - name: Install the wheel into a clean environment and import it
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          dist = Path("dist")
-          wheels = list(dist.glob("*.whl"))
-          sdists = list(dist.glob("*.tar.gz"))
-          if not wheels or not sdists:
-              raise SystemExit(f"missing artifacts in {list(dist.iterdir())}")
-          print("artifacts", wheels[0].name, sdists[0].name)
-          PY
-      - name: Import the installed wheel
-        run: |
-          uv pip install dist/*.whl
-          uv run python -c "from fastapi_route_guard import PolicyEvaluator, RouteGuard; print('ok')"
+          set -euo pipefail
+          uv venv --no-project .wheelcheck
+          uv pip install --python .wheelcheck/bin/python dist/*.whl
+          # No source tree on the path: this imports the wheel, not the checkout.
+          cd .wheelcheck
+          ./bin/python -c "
+          import fastapi_route_guard as guard
+          from fastapi_route_guard import PolicyEvaluator, RouteGuard, make_principal
+          from fastapi_route_guard.integrations.fastapi import AuthorizationDenied
+          from importlib.resources import files
+          assert files('fastapi_route_guard').joinpath('py.typed').is_file(), 'py.typed missing'
+          print('imported', guard.__version__)
+          "

@@ -17,7 +17,7 @@ boundaries, resource loading, and custom policy handlers.
 | Runtime | FastAPI, Python 3.11+   |
 | License | MIT                     |
 
-A Spanish-language summary is available in [README.es.md](README.es.md); this file is the full reference.
+A Spanish-language summary is available in [README.es.md](https://github.com/erick9125/fastapi-route-guard/blob/main/README.es.md); this file is the full reference.
 
 ---
 
@@ -269,7 +269,19 @@ async def resolve_invoice(
 Everything except the resource id is resolved by FastAPI itself, so a resolver
 gets the same dependency semantics as a route handler: `yield` dependencies are
 entered and closed around the request, `app.dependency_overrides` apply, and a
-dependency shared with the endpoint is resolved once per request. Because the
+dependency shared with the endpoint is resolved once per request.
+
+A denied request is an exception, so — exactly as in a route handler — the code
+after `yield` is skipped unless the dependency wraps it:
+
+```python
+async def get_session() -> AsyncIterator[Session]:
+    session = Session()
+    try:
+        yield session
+    finally:
+        await session.close()   # also runs when the guard denies the request
+``` Because the
 guard reads the resolver's signature when the route is declared, call
 `add_resource()` before `protect_resource()` — an unregistered resource then
 fails at import time instead of on the first request that reaches the endpoint.
@@ -321,7 +333,7 @@ async def update_invoice(
     return invoice
 ```
 
-Tenant membership does not imply ownership. See [docs/ownership.md](docs/ownership.md).
+Tenant membership does not imply ownership. See [docs/ownership.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/ownership.md).
 
 ---
 
@@ -329,7 +341,7 @@ Tenant membership does not imply ownership. See [docs/ownership.md](docs/ownersh
 
 `tenant=True` requires `principal.tenant_id == attributes.tenant_id`, and both
 values must be present. This is a boundary check, not a query filter. See
-[docs/multi-tenancy.md](docs/multi-tenancy.md).
+[docs/multi-tenancy.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/multi-tenancy.md).
 
 ---
 
@@ -364,7 +376,7 @@ Depends(
 ```
 
 Every listed handler must allow. A missing handler is an error, not an allow.
-See [docs/custom-policies.md](docs/custom-policies.md).
+See [docs/custom-policies.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/custom-policies.md).
 
 ---
 
@@ -418,7 +430,7 @@ evaluated.
 Resource-level authorization depends on correct resolver and policy
 configuration.
 
-Read [docs/security-model.md](docs/security-model.md) for fail-closed rules,
+Read [docs/security-model.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/security-model.md) for fail-closed rules,
 logging guidance, and what the `403` body must never contain.
 
 ---
@@ -451,7 +463,7 @@ PATCH /invoices/invoice-c  →  403
 ```
 
 Tenant and ownership are different controls. See
-[examples/invoices_api](examples/invoices_api).
+[examples/invoices_api](https://github.com/erick9125/fastapi-route-guard/tree/main/examples/invoices_api).
 
 ---
 
@@ -486,7 +498,7 @@ This library authorizes one requested resource at a time. It does not turn a
 policy into `WHERE tenant_id = :tenant`. List filtering, ORM adapters, OPA,
 and decision caching are out of scope for `0.1.x`.
 
-See [docs/limitations.md](docs/limitations.md).
+See [docs/limitations.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/limitations.md).
 
 ---
 
@@ -496,7 +508,7 @@ The authorization engine is Python, async, and framework-free. FastAPI is an
 integration layer on top of it: `Depends`, path-param extraction, and HTTP
 errors.
 
-See [docs/architecture.md](docs/architecture.md).
+See [docs/architecture.md](https://github.com/erick9125/fastapi-route-guard/blob/main/docs/architecture.md).
 
 ---
 
@@ -511,4 +523,4 @@ See [docs/architecture.md](docs/architecture.md).
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/erick9125/fastapi-route-guard/blob/main/LICENSE).

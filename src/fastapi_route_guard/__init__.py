@@ -1,3 +1,5 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from fastapi_route_guard.core.models import AuthorizationContext
 from fastapi_route_guard.core.policy import RoutePolicy
 from fastapi_route_guard.core.principal import AuthorizationPrincipal
@@ -37,6 +39,11 @@ from fastapi_route_guard.registry.resources import (
 from fastapi_route_guard.testing.builders import evaluate_policy
 from fastapi_route_guard.testing.principals import make_principal
 
+try:
+    __version__ = version("fastapi-route-guard")
+except PackageNotFoundError:  # running from a source tree without an install
+    __version__ = "0.0.0.dev0"
+
 __all__ = [
     "AttributesResolverLike",
     "AuthorizationContext",
@@ -69,6 +76,7 @@ __all__ = [
     "ScopeEvaluator",
     "TenantEvaluator",
     "ViolationCode",
+    "__version__",
     "evaluate_policy",
     "make_principal",
 ]

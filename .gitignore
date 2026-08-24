@@ -26,4 +26,4 @@ htmlcov/
 .vscode/
 *.log
 *.tgz
-uv.lock
+.wheelcheck/
