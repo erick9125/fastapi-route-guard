@@ -61,11 +61,12 @@ def test_registered_handler_name_wires_cleanly() -> None:
     guard = _guard()
     guard.add_policy_handler(_CanRead())
 
-    assert guard.protect_resource(
+    dependency = guard.protect_resource(
         "doc",
         id_param="doc_id",
         handler_names=("doc.can_read",),
     )
+    assert callable(dependency)
 
 
 def test_validate_rejects_an_id_param_the_route_does_not_declare() -> None:

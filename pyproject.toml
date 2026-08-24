@@ -30,7 +30,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: FastAPI",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -90,7 +89,7 @@ ignore = ["B008"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["fastapi_route_guard"]
+files = ["src", "tests", "examples"]
 mypy_path = "src"
 warn_return_any = true
 warn_unused_ignores = true

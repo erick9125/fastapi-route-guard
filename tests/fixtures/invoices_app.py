@@ -74,6 +74,9 @@ class InvoiceStore:
             for invoice in (INVOICE_A, INVOICE_B, INVOICE_C, INVOICE_APPROVED)
         }
 
+    def find_by_tenant(self, tenant_id: str) -> list[Invoice]:
+        return [item for item in self._items.values() if item.tenant_id == tenant_id]
+
     def find_by_id(self, invoice_id: str) -> Invoice | None:
         self.find_by_id_calls += 1
         return self._items.get(invoice_id)
@@ -161,9 +164,7 @@ def create_invoices_app(store: InvoiceStore | None = None) -> FastAPI:
             )
         ),
     ) -> list[Invoice]:
-        return [
-            item for item in invoices._items.values() if item.tenant_id == "tenant-a"
-        ]
+        return invoices.find_by_tenant("tenant-a")
 
     @app.get("/invoices/{invoice_id}")
     async def get_invoice(

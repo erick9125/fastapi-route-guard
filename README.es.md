@@ -4,7 +4,7 @@ Autorización declarativa a nivel de recurso para FastAPI.
 
 > **Resumen en español.** La referencia completa —handlers personalizados,
 > modelo de seguridad, comportamiento de errores— está en el
-> [README en inglés](README.md), que es la documentación que se mantiene al
+> [README en inglés](https://github.com/erick9125/fastapi-route-guard/blob/main/README.md), que es la documentación que se mantiene al
 > día. Esta página cubre lo justo para entender el paquete y arrancar.
 
 ## El problema
