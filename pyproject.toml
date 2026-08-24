@@ -86,7 +86,6 @@ ignore = ["B008"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["RUF012", "B008"]
 "examples/**/*.py" = ["RUF012", "B008"]
-"src/fastapi_route_guard/fastapi/guard.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

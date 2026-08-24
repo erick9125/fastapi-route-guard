@@ -8,7 +8,7 @@ src/fastapi_route_guard/
   evaluators/   roles, scopes, ownership, tenant, custom handlers, PolicyEvaluator
   registry/     resource and handler lookup
   testing/      evaluate_policy, make_principal
-  fastapi/      RouteGuard, path-param extraction, HTTP 403
+  integrations/fastapi/  RouteGuard, path-param extraction, HTTP 403
   exceptions.py configuration faults (500)
 ```
 

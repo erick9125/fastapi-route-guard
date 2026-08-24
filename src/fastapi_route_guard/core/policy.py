@@ -9,4 +9,4 @@ class RoutePolicy:
     scopes: frozenset[str] = field(default_factory=frozenset)
     ownership: bool = False
     tenant: bool = False
-    handlers: tuple[str, ...] = ()
+    handler_names: tuple[str, ...] = ()

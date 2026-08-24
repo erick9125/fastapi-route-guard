@@ -51,3 +51,14 @@ class MissingResourceId(PolicyEvaluationError):
     def __init__(self, id_param: str) -> None:
         self.id_param = id_param
         super().__init__(f'Path parameter "{id_param}" is missing from the request.')
+
+
+class IdParameterNotInPath(PolicyEvaluationError):
+    def __init__(self, resource: str, id_param: str, path: str) -> None:
+        self.resource = resource
+        self.id_param = id_param
+        self.path = path
+        super().__init__(
+            f'Resource policy for "{resource}" reads path parameter '
+            f'"{id_param}", which is not declared by the route "{path}".'
+        )

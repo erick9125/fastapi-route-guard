@@ -48,6 +48,13 @@ Unknown handlers, unknown resource types, duplicate registrations, and thrown
 resolvers do not allow access. A thrown resolver is an error, not a deny
 decision, and must not be caught and turned into allow.
 
+Most of those are configuration mistakes, and a configuration mistake should
+not wait for traffic. An unregistered resource and an unknown handler name fail
+when the route is declared; `guard.validate(app)` covers what needs the route
+path, raising `IdParameterNotInPath` for an `id_param` the route does not
+declare. A path value that cannot be the kind of id the resolver asked for is
+denied like any other miss, without reaching the resolver.
+
 A policy that names a resource must also check the object — `tenant`,
 `ownership`, or a handler — or `protect_resource` raises `MissingObjectCheck`.
 `action` is descriptive metadata and never counts as a check.

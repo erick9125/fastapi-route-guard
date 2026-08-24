@@ -1,18 +1,14 @@
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
 
+from fastapi_route_guard.core.resource import AttributesResolverLike, ResolverLike
 from fastapi_route_guard.exceptions import DuplicateResource, ResourceNotRegistered
-
-ResourceResolverFn = Callable[..., Awaitable[Any | None]]
-AttributesResolverFn = Callable[..., Awaitable[Any]]
 
 
 @dataclass(frozen=True, slots=True)
 class ResourceRegistration:
     name: str
-    resolver: ResourceResolverFn | object
-    attributes: AttributesResolverFn | object
+    resolver: ResolverLike
+    attributes: AttributesResolverLike
 
 
 class ResourceRegistry:
@@ -23,8 +19,8 @@ class ResourceRegistry:
         self,
         name: str,
         *,
-        resolver: ResourceResolverFn | object,
-        attributes: AttributesResolverFn | object,
+        resolver: ResolverLike,
+        attributes: AttributesResolverLike,
     ) -> None:
         if name in self._resources:
             raise DuplicateResource(name)

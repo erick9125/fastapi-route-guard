@@ -19,7 +19,7 @@ def _denied(*violations: AuthorizationViolation) -> AuthorizationResult:
     return AuthorizationResult(allowed=False, violations=violations)
 
 
-def _allowed(
+def _result(
     violations: tuple[AuthorizationViolation, ...] = (),
 ) -> AuthorizationResult:
     if violations:
@@ -100,7 +100,7 @@ class PolicyEvaluator:
                 return _denied(violation)
             violations.append(violation)
 
-        return _allowed(tuple(violations))
+        return _result(tuple(violations))
 
     async def evaluate_resource(
         self,
@@ -154,7 +154,7 @@ class PolicyEvaluator:
                     return _denied(violation)
                 violations.append(violation)
 
-        for name in policy.handlers:
+        for name in policy.handler_names:
             handler: PolicyHandler = self._registry.get(name)
             allowed = await handler.evaluate(context)
             if not allowed:
@@ -166,4 +166,4 @@ class PolicyEvaluator:
                     return _denied(violation)
                 violations.append(violation)
 
-        return _allowed(tuple(violations))
+        return _result(tuple(violations))

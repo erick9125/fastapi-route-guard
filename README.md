@@ -281,6 +281,25 @@ A `protect_resource()` policy must declare `tenant`, `ownership`, or a custom
 handler. Loading a row is not, by itself, an authorization decision.
 `unsafe_skip_object_check=True` opts out explicitly.
 
+The path value is converted to the kind of id the resolver declares, so a
+resolver asking for `int` or `UUID` receives one instead of the raw string. A
+value that cannot be that kind of id is denied like any other miss — it cannot
+name an existing resource — and the resolver is never called.
+
+### Wiring checks
+
+Mistakes in wiring should not wait for a request. An unregistered resource and
+an unknown handler name already fail when the route is declared. The route path
+is only known once the decorator has run, so check the rest at startup:
+
+```python
+guard.validate(app)
+```
+
+It raises `IdParameterNotInPath` when a policy reads an `id_param` the route it
+is mounted on does not declare. Call it in a test or on startup — a mistyped
+`id_param` becomes a boot failure instead of a 500 on the first request.
+
 ---
 
 ## Ownership
@@ -327,7 +346,7 @@ class InvoiceCanApprove:
         return invoice.status == "pending"
 
 
-guard.policy(InvoiceCanApprove())
+guard.add_policy_handler(InvoiceCanApprove())
 ```
 
 ```python
@@ -339,7 +358,7 @@ Depends(
         roles={"manager"},
         scopes={"invoice:approve"},
         tenant=True,
-        handlers=("invoice.can_approve",),
+        handler_names=("invoice.can_approve",),
     )
 )
 ```

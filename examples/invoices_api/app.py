@@ -19,7 +19,7 @@ async def invoice_attributes(invoice: Invoice) -> ResourceAttributes:
 
 guard = RouteGuard(principal=current_principal)
 guard.add_resource("invoice", resolver=resolve_invoice, attributes=invoice_attributes)
-guard.policy(InvoiceCanApprove())
+guard.add_policy_handler(InvoiceCanApprove())
 
 app = FastAPI(title="FastAPI Route Guard invoices example")
 
@@ -77,7 +77,7 @@ async def approve_invoice(
             roles={"manager"},
             scopes={"invoice:approve"},
             tenant=True,
-            handlers=("invoice.can_approve",),
+            handler_names=("invoice.can_approve",),
         )
     ),
 ) -> Invoice:
@@ -101,3 +101,7 @@ async def delete_invoice(
     removed = store.remove(invoice.id)
     assert removed is not None
     return removed
+
+
+# Wiring is checked once, at import time, instead of on the first request.
+guard.validate(app)

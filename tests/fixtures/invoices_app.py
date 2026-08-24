@@ -146,7 +146,7 @@ def create_invoices_app(store: InvoiceStore | None = None) -> FastAPI:
         resolver=resolve_invoice,
         attributes=invoice_attributes,
     )
-    guard.policy(InvoiceCanApprove())
+    guard.add_policy_handler(InvoiceCanApprove())
 
     app = FastAPI()
     app.state.store = invoices
@@ -207,7 +207,7 @@ def create_invoices_app(store: InvoiceStore | None = None) -> FastAPI:
                 roles={"manager"},
                 scopes={"invoice:approve"},
                 tenant=True,
-                handlers=("invoice.can_approve",),
+                handler_names=("invoice.can_approve",),
             )
         ),
     ) -> Invoice:
@@ -231,4 +231,5 @@ def create_invoices_app(store: InvoiceStore | None = None) -> FastAPI:
         assert removed is not None
         return removed
 
+    guard.validate(app)
     return app
