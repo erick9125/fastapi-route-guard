@@ -23,8 +23,38 @@
   raises `InvalidPrincipal`, naming the dependency and the type it returned,
   instead of failing inside an evaluator with an anonymous `AttributeError`.
 
+- The resource id is converted to the kind of id the resolver declares (`int`,
+  `UUID`, `str`). Starlette hands path values over as strings, so a resolver
+  asking for an `int` used to receive text: strict drivers raise and key-based
+  stores silently miss, denying a resource the caller does own. A value that
+  cannot be that kind of id is denied like any other miss, without calling the
+  resolver.
+- The attributes resolver receives the loaded object through a parameter named
+  `resource`, falling back to the first parameter. It is no longer bound by
+  position, which could hand it a value meant to come from the path.
+- A parameter that asks for the ASGI request is never treated as the resource
+  id, even when the path parameter shares its name.
+
+### Added
+
+- `RouteGuard.validate(app)` checks this guard's dependencies against the routes
+  they are mounted on and raises `IdParameterNotInPath` for an `id_param` the
+  route does not declare. Handler names are now resolved when the route is
+  declared, so an unknown one fails at import time as well.
+
 ### Changed
 
+- Moved the FastAPI integration from `fastapi_route_guard.fastapi` to
+  `fastapi_route_guard.integrations.fastapi`. A subpackage named `fastapi`
+  inside the distribution shadowed the framework's own name.
+- `RouteGuard.policy()` is now `RouteGuard.add_policy_handler()`, symmetric with
+  `add_resource()` and no longer implying it registers a policy.
+- `RoutePolicy.handlers` and the `handlers=` argument of `protect()` and
+  `protect_resource()` are now `handler_names`: they hold names, not handlers.
+- `add_resource()` and `ResourceRegistration` are typed with the `ResolverLike` /
+  `AttributesResolverLike` aliases instead of bare `object`, which makes the
+  `ResourceResolver` and `ResourceAttributesResolver` protocols load-bearing.
+- Dropped the unused `TResource` export.
 - Renamed the `test_principal()` helper to `make_principal()`. The old name was
   collected by pytest as a test in every project that imported it, producing a
   phantom passing test and a `PytestReturnNotNoneWarning`.

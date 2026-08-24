@@ -1,30 +1,38 @@
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from typing import Annotated, Any, cast
 
-from fastapi import Depends
+from fastapi import APIRouter, Depends, FastAPI
 from starlette.requests import Request
 
 from fastapi_route_guard.core.models import AuthorizationContext
 from fastapi_route_guard.core.policy import RoutePolicy
 from fastapi_route_guard.core.principal import AuthorizationPrincipal
-from fastapi_route_guard.core.resource import ResourceAttributes
+from fastapi_route_guard.core.resource import (
+    AttributesResolverLike,
+    ResolverLike,
+    ResourceAttributes,
+)
 from fastapi_route_guard.evaluators.custom import PolicyHandler
 from fastapi_route_guard.evaluators.evaluator import PolicyEvaluator
 from fastapi_route_guard.exceptions import (
+    IdParameterNotInPath,
     InvalidPrincipal,
     MissingObjectCheck,
     MissingResourceId,
 )
-from fastapi_route_guard.fastapi.context import build_request_context
-from fastapi_route_guard.fastapi.dependencies import (
+from fastapi_route_guard.integrations.fastapi.context import build_request_context
+from fastapi_route_guard.integrations.fastapi.dependencies import (
+    INVALID_ID,
     call_resolver,
     callable_from,
+    coerce_resource_id,
     collector_for,
     id_parameter,
+    parameter_annotation,
     resource_parameter,
 )
-from fastapi_route_guard.fastapi.exceptions import AuthorizationDenied
+from fastapi_route_guard.integrations.fastapi.exceptions import AuthorizationDenied
 from fastapi_route_guard.registry.policies import PolicyRegistry
 from fastapi_route_guard.registry.resources import ResourceRegistry
 
@@ -42,6 +50,20 @@ def _parameter(name: str, annotation: object) -> inspect.Parameter:
         inspect.Parameter.POSITIONAL_OR_KEYWORD,
         annotation=annotation,
     )
+
+
+def _dependency_calls(route: object) -> Iterator[Callable[..., Any]]:
+    """Every callable FastAPI resolves for a route, sub-dependencies included."""
+    dependant = getattr(route, "dependant", None)
+    if dependant is None:
+        return
+    pending = [dependant]
+    while pending:
+        current = pending.pop()
+        call = getattr(current, "call", None)
+        if callable(call):
+            yield call
+        pending.extend(getattr(current, "dependencies", ()))
 
 
 def _checked_principal(
@@ -75,18 +97,46 @@ class RouteGuard:
             registry=self._policies,
             collect_all=collect_all,
         )
+        self._wiring: dict[Callable[..., Any], tuple[str, str]] = {}
+
+    def validate(self, app: FastAPI | APIRouter) -> None:
+        """Check this guard's dependencies against the routes they are mounted on.
+
+        The path a dependency ends up on is only known once the route is
+        declared, so this cannot be checked while wiring. Call it at startup —
+        or in a test — to turn a mistyped `id_param` into a boot failure instead
+        of a 500 on the first request to that endpoint.
+        """
+        for route in app.routes:
+            path_params = set(getattr(route, "param_convertors", {}) or {})
+            for call in _dependency_calls(route):
+                wiring = self._wiring.get(call)
+                if wiring is None:
+                    continue
+                resource, id_param = wiring
+                if id_param not in path_params:
+                    raise IdParameterNotInPath(
+                        resource,
+                        id_param,
+                        getattr(route, "path", "?"),
+                    )
 
     def add_resource(
         self,
         name: str,
         *,
-        resolver: object,
-        attributes: object,
+        resolver: ResolverLike,
+        attributes: AttributesResolverLike,
     ) -> None:
         self._resources.register(name, resolver=resolver, attributes=attributes)
 
-    def policy(self, handler: PolicyHandler) -> None:
+    def add_policy_handler(self, handler: PolicyHandler) -> None:
         self._policies.register(handler)
+
+    def _require_handlers(self, handler_names: tuple[str, ...]) -> None:
+        """Resolve every handler name now, so a typo fails at wiring time."""
+        for name in handler_names:
+            self._policies.get(name)
 
     def protect(
         self,
@@ -94,14 +144,15 @@ class RouteGuard:
         action: str | None = None,
         roles: set[str] | None = None,
         scopes: set[str] | None = None,
-        handlers: tuple[str, ...] = (),
+        handler_names: tuple[str, ...] = (),
     ) -> Callable[..., Awaitable[None]]:
         policy = RoutePolicy(
             action=action,
             roles=frozenset(roles or ()),
             scopes=frozenset(scopes or ()),
-            handlers=handlers,
+            handler_names=handler_names,
         )
+        self._require_handlers(handler_names)
 
         async def dependency(
             request: Request,
@@ -132,7 +183,7 @@ class RouteGuard:
         scopes: set[str] | None = None,
         ownership: bool = False,
         tenant: bool = False,
-        handlers: tuple[str, ...] = (),
+        handler_names: tuple[str, ...] = (),
         unsafe_skip_object_check: bool = False,
     ) -> Callable[..., Awaitable[Any]]:
         policy = RoutePolicy(
@@ -142,13 +193,13 @@ class RouteGuard:
             scopes=frozenset(scopes or ()),
             ownership=ownership,
             tenant=tenant,
-            handlers=handlers,
+            handler_names=handler_names,
         )
         if (
             not unsafe_skip_object_check
             and not policy.tenant
             and not policy.ownership
-            and not policy.handlers
+            and not policy.handler_names
         ):
             raise MissingObjectCheck(resource)
 
@@ -158,9 +209,11 @@ class RouteGuard:
         resolver_call = callable_from(registration.resolver)
         attributes_call = callable_from(registration.attributes)
         resource_id_arg = id_parameter(resolver_call, id_param)
+        resource_id_type = parameter_annotation(resolver_call, resource_id_arg)
         resource_arg = resource_parameter(attributes_call)
         resolver_deps = collector_for(resolver_call, exclude={resource_id_arg})
         attribute_deps = collector_for(attributes_call, exclude={resource_arg})
+        self._require_handlers(handler_names)
 
         async def dependency(**guard_args: Any) -> Any:
             request = cast(Request, guard_args[_REQUEST_ARG])
@@ -181,11 +234,14 @@ class RouteGuard:
             if resource_id is None:
                 raise MissingResourceId(id_param)
 
-            loaded = await call_resolver(
-                resolver_call,
-                **{resource_id_arg: str(resource_id)},
-                **guard_args[_RESOLVER_ARGS],
-            )
+            coerced_id = coerce_resource_id(str(resource_id), resource_id_type)
+            loaded = None
+            if coerced_id is not INVALID_ID:
+                loaded = await call_resolver(
+                    resolver_call,
+                    **{resource_id_arg: coerced_id},
+                    **guard_args[_RESOLVER_ARGS],
+                )
             attributes: ResourceAttributes | None = None
             if loaded is not None:
                 resolved = await call_resolver(
@@ -213,6 +269,7 @@ class RouteGuard:
             return loaded
 
         dependency.__name__ = f"protect_{resource}"
+        self._wiring[dependency] = (resource, id_param)
         dependency.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
             [
                 _parameter(_REQUEST_ARG, Request),

@@ -12,7 +12,7 @@ from fastapi_route_guard import (
     ResourceAttributes,
     RouteGuard,
 )
-from fastapi_route_guard.fastapi.dependencies import callable_from
+from fastapi_route_guard.integrations.fastapi.dependencies import callable_from
 
 
 class _Doc:

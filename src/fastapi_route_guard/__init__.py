@@ -2,10 +2,11 @@ from fastapi_route_guard.core.models import AuthorizationContext
 from fastapi_route_guard.core.policy import RoutePolicy
 from fastapi_route_guard.core.principal import AuthorizationPrincipal
 from fastapi_route_guard.core.resource import (
+    AttributesResolverLike,
+    ResolverLike,
     ResourceAttributes,
     ResourceAttributesResolver,
     ResourceResolver,
-    TResource,
 )
 from fastapi_route_guard.core.result import AuthorizationResult, AuthorizationViolation
 from fastapi_route_guard.core.violations import ViolationCode
@@ -18,6 +19,7 @@ from fastapi_route_guard.evaluators.tenant import TenantEvaluator
 from fastapi_route_guard.exceptions import (
     DuplicatePolicyHandler,
     DuplicateResource,
+    IdParameterNotInPath,
     InvalidPrincipal,
     MissingObjectCheck,
     MissingResourceId,
@@ -25,8 +27,8 @@ from fastapi_route_guard.exceptions import (
     PolicyHandlerNotFound,
     ResourceNotRegistered,
 )
-from fastapi_route_guard.fastapi.exceptions import AuthorizationDenied
-from fastapi_route_guard.fastapi.guard import RouteGuard
+from fastapi_route_guard.integrations.fastapi.exceptions import AuthorizationDenied
+from fastapi_route_guard.integrations.fastapi.guard import RouteGuard
 from fastapi_route_guard.registry.policies import PolicyRegistry
 from fastapi_route_guard.registry.resources import (
     ResourceRegistration,
@@ -36,6 +38,7 @@ from fastapi_route_guard.testing.builders import evaluate_policy
 from fastapi_route_guard.testing.principals import make_principal
 
 __all__ = [
+    "AttributesResolverLike",
     "AuthorizationContext",
     "AuthorizationDenied",
     "AuthorizationPrincipal",
@@ -43,6 +46,7 @@ __all__ = [
     "AuthorizationViolation",
     "DuplicatePolicyHandler",
     "DuplicateResource",
+    "IdParameterNotInPath",
     "InvalidPrincipal",
     "MissingObjectCheck",
     "MissingResourceId",
@@ -52,6 +56,7 @@ __all__ = [
     "PolicyHandler",
     "PolicyHandlerNotFound",
     "PolicyRegistry",
+    "ResolverLike",
     "ResourceAttributes",
     "ResourceAttributesResolver",
     "ResourceNotRegistered",
@@ -62,7 +67,6 @@ __all__ = [
     "RouteGuard",
     "RoutePolicy",
     "ScopeEvaluator",
-    "TResource",
     "TenantEvaluator",
     "ViolationCode",
     "evaluate_policy",

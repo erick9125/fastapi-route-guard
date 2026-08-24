@@ -32,7 +32,7 @@ class _Boom:
 
 async def test_custom_handler_true_allows() -> None:
     result = await evaluate_policy(
-        policy=RoutePolicy(handlers=("always.allow",)),
+        policy=RoutePolicy(handler_names=("always.allow",)),
         principal=make_principal(),
         handlers=[_Allow()],
     )
@@ -41,7 +41,7 @@ async def test_custom_handler_true_allows() -> None:
 
 async def test_custom_handler_false_denies() -> None:
     result = await evaluate_policy(
-        policy=RoutePolicy(handlers=("always.deny",)),
+        policy=RoutePolicy(handler_names=("always.deny",)),
         principal=make_principal(),
         handlers=[_Deny()],
     )
@@ -52,7 +52,7 @@ async def test_custom_handler_false_denies() -> None:
 async def test_missing_handler_fails_closed() -> None:
     try:
         await evaluate_policy(
-            policy=RoutePolicy(handlers=("invoice.can_approve",)),
+            policy=RoutePolicy(handler_names=("invoice.can_approve",)),
             principal=make_principal(),
         )
     except PolicyHandlerNotFound as exc:
@@ -64,7 +64,7 @@ async def test_missing_handler_fails_closed() -> None:
 async def test_handler_exception_is_not_rewritten_to_allow() -> None:
     try:
         await evaluate_policy(
-            policy=RoutePolicy(handlers=("always.boom",)),
+            policy=RoutePolicy(handler_names=("always.boom",)),
             principal=make_principal(),
             handlers=[_Boom()],
         )

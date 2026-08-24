@@ -19,7 +19,7 @@ async def test_roles_scopes_tenant_and_handler_must_all_pass() -> None:
         roles=frozenset({"manager"}),
         scopes=frozenset({"invoice:approve"}),
         tenant=True,
-        handlers=("invoice.can_approve",),
+        handler_names=("invoice.can_approve",),
     )
     principal = make_principal(
         roles={"manager"},
@@ -49,7 +49,7 @@ async def test_tenant_failure_denies_even_when_other_requirements_pass() -> None
             roles=frozenset({"manager"}),
             scopes=frozenset({"invoice:approve"}),
             tenant=True,
-            handlers=("invoice.can_approve",),
+            handler_names=("invoice.can_approve",),
         ),
         principal=make_principal(
             roles={"manager"},

@@ -21,7 +21,7 @@ class InvoiceCanApprove:
         )
 
 
-guard.policy(InvoiceCanApprove())
+guard.add_policy_handler(InvoiceCanApprove())
 ```
 
 Every name listed in `handlers` must be registered. Missing handlers raise

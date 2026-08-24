@@ -22,7 +22,7 @@ async def test_collect_all_includes_resource_violations() -> None:
             resource="invoice",
             tenant=True,
             ownership=True,
-            handlers=("invoice.deny",),
+            handler_names=("invoice.deny",),
         ),
         principal=make_principal(id="user-1", tenant_id="tenant-a"),
         resource=object(),
@@ -57,7 +57,7 @@ async def test_collect_all_does_not_run_handlers_for_a_denied_caller() -> None:
     result = await evaluate_policy(
         policy=RoutePolicy(
             scopes=frozenset({"invoice:read"}),
-            handlers=("invoice.expensive",),
+            handler_names=("invoice.expensive",),
         ),
         principal=make_principal(scopes=set()),
         handlers=[_Expensive()],
